@@ -88,6 +88,7 @@ def waveform_model(time_array, mass_1, mass_2, luminosity_distance, theta_jn, ph
     """ Modelling the inspital part of the waveform in time domain """
     
     start_frequency = minimum_frequency = waveform_kwargs.get('minimum_frequency', 20.0)
+    #maximum_frequency = waveform_kwargs.get('maximum_frequency', frequency_array[-1])
     reference_frequency = waveform_kwargs.get('reference_frequency', 50.0)
     
     start_time = minimum_time = waveform_kwargs.get('minimum_time', time_array[0])
@@ -108,20 +109,22 @@ def waveform_model(time_array, mass_1, mass_2, luminosity_distance, theta_jn, ph
     mean_per_ano = 0.0
     
     hpt, hct = pycbc.waveform.get_td_waveform(approximant="NRSur7dq4",
-                                              mass1=mass_1,mass2=mass_2,
-                                              a1= a_1, a2= a_2, 
-                                              delta_t=1.0/4096, f_lower=20)
+                                        mass1=mass_1,
+                                 mass2=mass_2,
+                                 a1= a_1, a2= a_2,
+                                 delta_t=1.0/4096,
+                                 f_lower=20)
     
-    h_plus = np.zeros_like(time_array, dtype=complex)
-    h_cross = np.zeros_like(time_array, dtype=complex)
+    #h_plus = np.zeros_like(time_array, dtype=complex)
+    #h_cross = np.zeros_like(time_array, dtype=complex)
     
     if len(hpt.data.data) > len(time_array):
-        h_plus = hpt.data.data[:len(h_plus)]
-        h_cross = hct.data.data[:len(h_cross)]
+        h_plus = hpt.resize(len(time_array))
+        h_cross = hct.resize(len(time_array))
     else:
-        h_plus[-len(hpt.data.data):] = hpt.data.data
-        h_cross[-len(hct.data.data):] = hct.data.data
-        
+        h_plus = hpt.cyclic_time_shift(hpt.start_time)
+        h_cross = hct.cyclic_time_shift(hct.start_time)
+    
     return dict(plus = h_plus, cross = h_cross)
 
 #Logger and Interferometers
@@ -172,7 +175,8 @@ waveform_generator = bilby.gw.WaveformGenerator(duration = duration, sampling_fr
 
 likelihood = bilby.gw.likelihood.GravitationalWaveTransient(ifo_list,waveform_generator, priors=prior)
 
-result = bilby.run_sampler(likelihood, prior, sampler="dynesty", nlive=25, npoints=50, sample='unif',
+result = bilby.run_sampler(likelihood, prior, sampler="dynesty", nlive=25, npoints=50, 
+                           sample='unif',
                            conversion_function=bilby.gw.conversion.generate_all_bbh_parameters)
 
 #Ringdown Analysis
